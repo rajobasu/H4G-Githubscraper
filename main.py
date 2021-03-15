@@ -48,16 +48,29 @@ def process_java_file(file_content, repo_features):
         line.strip()
         if line.startswith("import"):
             line = line[len("import "):]
-            if line.strip().startswith("java"):
-                parts = line.split(".")
-                repo_features.add_keywords(parts)
+            if line.strip().startswith("java") or line.strip().startswith("org"):
+                repo_features.add_keywords(line)
 
+def process_file(file_content, repo_features, file_extension):
+    if file_extension.endswith("java"):
+        process_java_file(file_content, repo_features)
 
 def process_repo_recursively(repo, repo_features, current_path, src_found=False, dir_depth_count=0):
     if src_found is False and dir_depth_count > 3:
         return
+    max_try = 100
+    curr_try = 0
+    got = False
+    while not got and curr_try < max_try:
+        try:
+            contents = repo.get_contents(current_path)
+            got = True
+        except:
+            curr_try += 1
 
-    contents = repo.get_contents(current_path)
+    if not got:
+        return
+
     for file in contents:
         if file.type == "dir":
             if file.name == "src":
@@ -65,9 +78,8 @@ def process_repo_recursively(repo, repo_features, current_path, src_found=False,
             else:
                 process_repo_recursively(repo, repo_features,file.path, src_found, dir_depth_count + 1)
         else:
-            if file.name.endswith("java"):
-                # print(str(file.decoded_content, 'utf-8'))
-                process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
+            print("Processing : ", file.name)
+            process_file(str(file.decoded_content, 'utf-8'), repo_features, "java")
 
 
 def process_repo(repo, repo_stats):
@@ -84,7 +96,7 @@ def main():
     repo_features = RepoFeatures()
     for repo in repo_list:
         print(get_repo_stats(repo).name)
-        if repo.name == "ip":
+        if repo.name == "Necromantion":
             process_repo(repo, repo_features)
     print(list(dict.fromkeys(repo_features.keywords)))
 
