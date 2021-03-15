@@ -1,17 +1,19 @@
 from github import Github
+from github.GithubException import UnknownObjectException
 
 
 # ==============================================================================
 # CLASSES
 # ==============================================================================
 
-
 class RepoFeatures:
     def __init__(self):
         self.name = None
         self.java_lines = 0
-        self.keywords = []
+        self.keywords = {}
         self.jarFilesUsed = []
+        self.forkedRepos = 0
+        self.repo_stars = {}
         pass
 
     def set_name(self, name):
@@ -21,18 +23,37 @@ class RepoFeatures:
         self.java_lines += lines
 
     def add_keyword(self, keyword):
-        self.keywords.append(keyword)
-
-    def add_keywords(self, keywords):
-        self.keywords = self.keywords + keywords
+        if keyword in self.keywords:
+            self.keywords[keyword] += 1
+        else:
+            self.keywords[keyword] = 1
 
     def add_jar(self, jar):
         self.jarFilesUsed.append(jar)
+
+    def add_forked_repo(self):
+        self.forkedRepos += 1
+
+    def add_repo_stars(self, repo_name, stars):
+        if stars != 0:
+            self.repo_stars[repo_name] = stars
 
 
 # ==============================================================================
 # FUNCTIONS
 # ==============================================================================
+
+def has_valid_extension(path):
+    if "." not in path:
+        return True
+    else:
+        valid_extensions = [".java", ".jar"]
+
+        for ext in valid_extensions:
+            if path.endswith(ext):
+                return True
+
+    return False
 
 
 def get_repos_list(user):
@@ -41,8 +62,8 @@ def get_repos_list(user):
 
 def get_github_obj():
     with open("accesstoken.txt", "r") as reader:
-        accesstoken = str(reader.readline()).strip()
-    g = Github(accesstoken)
+        access_token = str(reader.readline()).strip()
+    g = Github(access_token)
     return g
 
 
@@ -68,7 +89,6 @@ def process_java_file(file_content, repo_features):
 
 def process_file(file, repo_features):
     if file.name.endswith("java"):
-        print(file.name)
         process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
     elif file.name.endswith("jar"):
         repo_features.add_jar(file.name)
@@ -101,29 +121,43 @@ def process_repo_recursively(repo, repo_features, current_path, src_found=False,
             process_file(file, repo_features)
 
 
-def process_entire_repo(repo, repo_stats):
+def process_entire_repo(repo, repo_features):
     print("-" * 40)
     print(repo.name)
     print(repo.fork)
-    process_repo_recursively(repo, repo_stats, "")
+    process_repo_recursively(repo, repo_features, "")
     print("-" * 40)
 
 
-def process_commit(repo, repo_stats, commit):
+def get_all_files_from_commit(repo, repo_features, commit):
+    allfiles = []
     for file in commit.files:
         path = file.filename
-        print(file.filename)
-        actual_file = repo.get_contents(path)
-        if actual_file.type != "dir":
-            process_file(actual_file, repo_stats)
+        print("PATH : " , path)
+        if not has_valid_extension(path):
+            continue
+        allfiles.append(path)
 
+    return allfiles
 
-def process_repo_commit_wise(repo, repo_stats, username):
+def process_repo_commit_wise(repo, repo_features, username):
     print(username)
+    if not repo.name == "ip":
+        return
     all_commits = repo.get_commits(author=username)
     print(all_commits.totalCount)
+    all_files = []
     for commit in all_commits:
-        process_commit(repo, repo_stats, commit)
+        all_files = all_files + get_all_files_from_commit(repo, repo_features, commit)
+
+    all_files = list(dict.fromkeys(all_files))
+    for file in all_files:
+        try:
+            actual_file = repo.get_contents(file)
+            process_file(actual_file, repo_features)
+        except:
+            """Essentially to deal with deletion"""
+            pass
 
 
 def main():
@@ -134,12 +168,16 @@ def main():
     repo_features = RepoFeatures()
     for repo in repo_list:
         print(get_repo_stats(repo).name)
-        if repo.name == "tp":
-            if not repo.fork:
-                process_entire_repo(repo, repo_features)
-            else:
-                process_repo_commit_wise(repo, repo_features, "rajobasu")
-    print(list(dict.fromkeys(repo_features.keywords)))
+
+        if not repo.fork:
+            process_entire_repo(repo, repo_features)
+            # pass
+        else:
+            repo_features.add_forked_repo()
+
+        process_repo_commit_wise(repo, repo_features, username)
+
+    print(repo_features.keywords)
     print(list(dict.fromkeys(repo_features.jarFilesUsed)))
 
 
