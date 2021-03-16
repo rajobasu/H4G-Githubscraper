@@ -1,4 +1,4 @@
 WDM - INFO - ====== WebDriver manager ======
-WDM - INFO - Current google-chrome version is 88.0.4324
-WDM - INFO - Get LATEST driver version for 88.0.4324
-WDM - INFO - Driver [C:\Users\yangc\.wdm\drivers\chromedriver\win32\88.0.4324.96\chromedriver.exe] found in cache
+WDM - INFO - Current google-chrome version is 89.0.4389
+WDM - INFO - Get LATEST driver version for 89.0.4389
+WDM - INFO - Driver [/Users/rajobasu/.wdm/drivers/chromedriver/mac64/89.0.4389.23/chromedriver] found in cache

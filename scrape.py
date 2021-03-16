@@ -172,7 +172,7 @@ def main():
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     logging.info("driver setup done")
 
-    login(driver=driver, email=config.email, password=config.password)
+    login(driver=driver, email="", password="")
     scraper = Profile(driver=driver, profile=profile)
     scraper.scrape()
     write_to_json(file_name=file_name, data=scraper.LinkedIn_Dict)
