@@ -1,5 +1,6 @@
 from github import Github
 from github.GithubException import UnknownObjectException
+import threading
 
 
 # ==============================================================================
@@ -89,7 +90,8 @@ def process_java_file(file_content, repo_features):
 
 def process_file(file, repo_features):
     if file.name.endswith("java"):
-        process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
+        threading.Thread(target=process_java_file, args=(str(file.decoded_content, 'utf-8'), repo_features, ))
+        # process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
     elif file.name.endswith("jar"):
         repo_features.add_jar(file.name)
 
@@ -133,17 +135,16 @@ def get_all_files_from_commit(repo, repo_features, commit):
     allfiles = []
     for file in commit.files:
         path = file.filename
-        print("PATH : " , path)
+        print("PATH : ", path)
         if not has_valid_extension(path):
             continue
         allfiles.append(path)
 
     return allfiles
 
+
 def process_repo_commit_wise(repo, repo_features, username):
     print(username)
-    if not repo.name == "ip":
-        return
     all_commits = repo.get_commits(author=username)
     print(all_commits.totalCount)
     all_files = []
@@ -160,6 +161,54 @@ def process_repo_commit_wise(repo, repo_features, username):
             pass
 
 
+def get_associated_concept_from_keyword(keyword):
+    parts = keyword.split(".")
+    if len(parts) == 1:
+        return parts[0]
+
+    main_part = parts[0] + "." + parts[1]
+    return main_part
+
+
+def process_all_keywords(keywords):
+    concept_frequency_dict = {}
+    for keyword, freq in keywords.items():
+        concept = get_associated_concept_from_keyword(keyword)
+        if concept in concept_frequency_dict:
+            concept_frequency_dict[concept] += freq
+        else:
+            concept_frequency_dict[concept] = freq
+    return concept_frequency_dict
+
+
+def get_top_keywords(cf_dict, num):
+    num = min(num, len(cf_dict))
+    all_pairs = []
+    sorted_keys = sorted(cf_dict.keys(), key=cf_dict.get, reverse=True)
+    for i in range(num):
+        all_pairs.append((sorted_keys[i], cf_dict[sorted_keys[i]]))
+
+    return all_pairs
+
+
+def load_mappings():
+    mappings = {}
+    with open("framework-feature.csv", "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            parts = line.split(",")
+            mappings[parts[0]] = parts[1]
+
+    return mappings
+
+
+def find_concept(mappings, keyword):
+    for phrase, concept in mappings.items():
+        if phrase in keyword:
+            return concept
+    return keyword
+
+
 def main():
     github_obj = get_github_obj();
     username = "rajobasu"
@@ -171,13 +220,25 @@ def main():
 
         if not repo.fork:
             process_entire_repo(repo, repo_features)
-            # pass
         else:
             repo_features.add_forked_repo()
-
-        process_repo_commit_wise(repo, repo_features, username)
+            process_repo_commit_wise(repo, repo_features, username)
 
     print(repo_features.keywords)
+    concept_freq_table = process_all_keywords(repo_features.keywords)
+    best20keywords = get_top_keywords(concept_freq_table, 20)
+    print(best20keywords)
+
+    mappings = load_mappings()
+    conceptList = {}
+    for keyword, freq in concept_freq_table.items():
+        concept = find_concept(mappings, keyword).strip()
+        if concept in conceptList:
+            conceptList[concept] += freq
+        else:
+            conceptList[concept] = freq
+
+    print(conceptList)
     print(list(dict.fromkeys(repo_features.jarFilesUsed)))
 
 
