@@ -1,5 +1,6 @@
+import json
+
 from github import Github
-from github.GithubException import UnknownObjectException
 import threading
 
 
@@ -90,8 +91,8 @@ def process_java_file(file_content, repo_features):
 
 def process_file(file, repo_features):
     if file.name.endswith("java"):
-        threading.Thread(target=process_java_file, args=(str(file.decoded_content, 'utf-8'), repo_features, ))
-        # process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
+        # threading.Thread(target=process_java_file, args=(str(file.decoded_content, 'utf-8'), repo_features, ))
+        process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
     elif file.name.endswith("jar"):
         repo_features.add_jar(file.name)
 
@@ -193,7 +194,7 @@ def get_top_keywords(cf_dict, num):
 
 def load_mappings():
     mappings = {}
-    with open("framework-feature.csv", "r") as f:
+    with open("framework-features.csv", "r") as f:
         lines = f.readlines()
         for line in lines:
             parts = line.split(",")
@@ -206,12 +207,11 @@ def find_concept(mappings, keyword):
     for phrase, concept in mappings.items():
         if phrase in keyword:
             return concept
-    return keyword
+    return None
 
 
-def main():
+def main(username):
     github_obj = get_github_obj();
-    username = "rajobasu"
     user = get_user(github_obj, name=username)
     repo_list = get_repos_list(user)
     repo_features = RepoFeatures()
@@ -232,14 +232,20 @@ def main():
     mappings = load_mappings()
     conceptList = {}
     for keyword, freq in concept_freq_table.items():
-        concept = find_concept(mappings, keyword).strip()
+        concept = find_concept(mappings, keyword)
+        if concept is None:
+            continue
+
+        concept = concept.strip()
+
         if concept in conceptList:
             conceptList[concept] += freq
         else:
             conceptList[concept] = freq
 
     print(conceptList)
-    print(list(dict.fromkeys(repo_features.jarFilesUsed)))
+    to_return = {"concepts": conceptList}
+    return to_return
 
 
 if __name__ == "__main__":
