@@ -47,6 +47,3 @@ def main():
     person = KeywordExtractor(person_dict=person_dict)
     print(person.keywords)
 
-
-if __name__ == "__main__":
-    main()

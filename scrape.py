@@ -178,5 +178,3 @@ def main():
     write_to_json(file_name=file_name, data=scraper.LinkedIn_Dict)
 
 
-if __name__ == "__main__":
-    main()
