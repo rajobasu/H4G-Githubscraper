@@ -1,2 +1,2 @@
-web: gunicorn app:flaskapp
+web: gunicorn flaskapp:app
 
