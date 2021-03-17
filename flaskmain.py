@@ -20,7 +20,7 @@ def get_github_info():
     githubID = request.args.get("githubID")
     print("GOT REQUEST : ", githubID)
     result = jsonify(main(githubID))
-    result.headers.add("Access-Control-Allow-Origin", "*")
+    # result.headers.add("Access-Control-Allow-Origin", "*")
     return result
 
 
