@@ -1,3 +1,5 @@
+import pickle
+
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
@@ -5,7 +7,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import config
-import json
 import logging
 
 
@@ -23,15 +24,18 @@ class Profile:
         logging.info("successfully fetched profile")
 
     def scrape(self):
-        self.printProgressBar(0, 6, "checking for recent activities\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(0, 7, "checking for recent activities\t", "Complete", length=50, printEnd="\r\n")
         self.check_recent_activities()
-        self.printProgressBar(1, 6, "fetching interest categories\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(1, 7, "fetching profile picture\t\t", "Complete", length=50, printEnd="\r\n")
+        self.fetch_profile_picture()
+        self.printProgressBar(2, 7, "fetching interest categories\t", "Complete", length=50, printEnd="\r\n")
         self.fetch_interest_categories()
-        self.printProgressBar(4, 6, "fetching recent activities\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(5, 7, "fetching recent activities\t\t", "Complete", length=50, printEnd="\r\n")
         self.fetch_recent_activies()
-        self.printProgressBar(5, 6, "cleaning up\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(6, 7, "cleaning up\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
+        pickle.dump(self.driver.get_cookies(), open("cookies.pkl", "wb"))
         self.driver.quit()
-        self.printProgressBar(6, 6, "exiting\t\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(7, 7, "exiting\t\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
 
         logging.info("finished scrapping")
 
@@ -45,6 +49,19 @@ class Profile:
             self.have_recent_activities = True
         else:
             logging.warning("no recent activities")
+
+    def fetch_profile_picture(self):
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (By.CLASS_NAME, "presence-entity.presence-entity--size-9.pv-top-card__image")))
+        profile_pic = self.driver.find_element_by_class_name(
+            "presence-entity.presence-entity--size-9.pv-top-card__image").find_element_by_xpath("./img")
+        if "data:image/gif" in profile_pic.get_attribute('src'):
+            self.LinkedIn_Dict["Profile Picture"] = None
+            logging.warning("no profile picture")
+        else:
+            self.LinkedIn_Dict["Profile Picture"] = profile_pic.get_attribute('src')
+            logging.info("successfully fetched profile picture")
 
     def fetch_interest_categories(self):
         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
@@ -95,7 +112,8 @@ class Profile:
                 try:
                     WebDriverWait(self.driver, 3).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "pv-about__summary-text.mt4.t-14.ember-view")))
-                    description = self.driver.find_element_by_class_name("pv-about__summary-text.mt4.t-14.ember-view").text
+                    description = self.driver.find_element_by_class_name(
+                        "pv-about__summary-text.mt4.t-14.ember-view").text
                 except:
                     WebDriverWait(self.driver, 3).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "mt1.t-18.t-black.t-normal.break-words")))
@@ -111,7 +129,8 @@ class Profile:
                 self.driver.get(company_link)
                 WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "org-top-card-summary-info-list__info-item")))
-                company_sector = self.driver.find_element_by_class_name("org-top-card-summary-info-list__info-item").text
+                company_sector = self.driver.find_element_by_class_name(
+                    "org-top-card-summary-info-list__info-item").text
                 self.LinkedIn_Dict['Interests']["Companies"][index]['Industry'] = company_sector
             logging.info("successfully fetched interest company infos")
 
@@ -189,21 +208,18 @@ class Profile:
             print()
 
 
-def write_to_json(file_name: str, data: any) -> None:
-    with open(file_name + '.json', 'w') as json_file:
-        json.dump(data, json_file)
-
-    logging.info("json file created")
-
-
 def linkedin_scrapper(profile_link):
     logging.basicConfig(filename='scrape.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
     options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+    try:
+        cookies = pickle.load(open("cookies.pkl", "rb"))
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+    except:
+        pass
+
     logging.info("driver setup done")
 
     scraper = Profile(driver=driver, profile=profile_link)
@@ -212,5 +228,5 @@ def linkedin_scrapper(profile_link):
     return scraper.LinkedIn_Dict
 
 
-# if __name__ == "__main__":
-#     linkedin_scrapper("xxx")
+if __name__ == "__main__":
+    linkedin_scrapper("xxx")

@@ -1,4 +1,5 @@
 import json
+import os
 
 from github import Github
 import threading
@@ -63,8 +64,7 @@ def get_repos_list(user):
 
 
 def get_github_obj():
-    with open("accesstoken.txt", "r") as reader:
-        access_token = str(reader.readline()).strip()
+    access_token = str(os.environ["github_api_key"])
     g = Github(access_token)
     return g
 

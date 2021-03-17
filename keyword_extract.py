@@ -37,11 +37,12 @@ class KeywordExtractor:
 
 
 def linkedin_data(profile_link):
+
     person_dict = linkedin_scrapper(profile_link=profile_link)
     person = KeywordExtractor(person_dict=person_dict)
     person_dict["keywords"] = person.keywords.split("\n")
     return person_dict
 
 
-# if __name__ == "__main__":
-#     print(linkedin_data("https://www.linkedin.com/in/richardyang98/"))
+if __name__ == "__main__":
+    print(linkedin_data("https://www.linkedin.com/in/richardyang98/"))

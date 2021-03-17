@@ -1,9 +1,11 @@
 # import main Flask class and request object
 import json
+import os
 
 from flask import Flask, request, jsonify
 
 # create the Flask app
+from keyword_extract import linkedin_data
 from main import main
 
 app = Flask(__name__)
@@ -15,6 +17,16 @@ def get_github_info():
     githubID = request.args.get("githubID")
     print("GOT REQUEST : ", githubID)
     result = jsonify(main(githubID))
+    result.headers.add("Access-Control-Allow-Origin", "*")
+    return result
+
+
+@app.route('/linkedin')
+def get_linkedin_info():
+    print("in linkedin")
+    linkedin_link = request.args.get("linkedinID")
+    result = jsonify("hello")
+    # """"linkedin_data(linkedin_link)"""
     result.headers.add("Access-Control-Allow-Origin", "*")
     return result
 
@@ -31,4 +43,5 @@ def json_example():
 
 if __name__ == '__main__':
     # run app in debug mode on port 5000
+    print(os.environ.get("github_api_key"))
     app.run(debug=True, port=5000)
