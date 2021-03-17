@@ -4,10 +4,11 @@ import os
 from github import Github
 import threading
 
-
 # ==============================================================================
 # CLASSES
 # ==============================================================================
+from github.GithubException import UnknownObjectException
+
 
 class RepoFeatures:
     def __init__(self):
@@ -16,7 +17,9 @@ class RepoFeatures:
         self.keywords = {}
         self.jarFilesUsed = []
         self.forkedRepos = 0
+        self.totalRepos = 0
         self.repo_stars = {}
+        self.extensions = {}
         pass
 
     def set_name(self, name):
@@ -41,17 +44,37 @@ class RepoFeatures:
         if stars != 0:
             self.repo_stars[repo_name] = stars
 
+    def add_repo(self):
+        self.totalRepos += 1
+
+    def add_extension(self, e):
+        if e in self.extensions:
+            self.extensions[e] += 1
+        else:
+            self.extensions[e] = 1
+
 
 # ==============================================================================
 # FUNCTIONS
 # ==============================================================================
+valid_extensions = {".java": "java",
+                    ".js": "javascript",
+                    ".php": "PHP",
+                    ".py": "python",
+                    ".vbs": "VBScript",
+                    ".cpp": "C++",
+                    ".c": "C",
+                    ".css": "HTML/CSS",
+                    ".html": "HTML/CSS",
+                    ".rb": "Ruby",
+                    ".swift": "Swift",
+                    ".kt": "Kotlin"}
+
 
 def has_valid_extension(path):
     if "." not in path:
         return True
     else:
-        valid_extensions = [".java", ".jar"]
-
         for ext in valid_extensions:
             if path.endswith(ext):
                 return True
@@ -79,6 +102,18 @@ def get_repo_stats(repo):
     return rf
 
 
+def get_extension(str):
+    for key, value in valid_extensions.items():
+        if str.endswith(key):
+            return value
+    return None
+
+
+# ======================================================================
+# ======== FUNCTIONS FOR FILE PROCESSING ===============================
+# ======================================================================
+
+
 def process_java_file(file_content, repo_features):
     lines = file_content.split("\n")
     for line in lines:
@@ -90,16 +125,17 @@ def process_java_file(file_content, repo_features):
 
 
 def process_file(file, repo_features):
+    extension = get_extension(file.name)
+    if extension is None:
+        return
+    repo_features.add_extension(extension)
     if file.name.endswith("java"):
-        # threading.Thread(target=process_java_file, args=(str(file.decoded_content, 'utf-8'), repo_features, ))
         process_java_file(str(file.decoded_content, 'utf-8'), repo_features)
     elif file.name.endswith("jar"):
         repo_features.add_jar(file.name)
 
 
-def process_repo_recursively(repo, repo_features, current_path, src_found=False, dir_depth_count=0):
-    if src_found is False and dir_depth_count > 3:
-        return
+def get_content_of_current_path(repo, current_path):
     max_try = 100
     curr_try = 0
     got = False
@@ -111,7 +147,16 @@ def process_repo_recursively(repo, repo_features, current_path, src_found=False,
             curr_try += 1
 
     if not got:
+        return None
+
+    return contents
+
+
+def process_repo_recursively(repo, repo_features, current_path, src_found=False, dir_depth_count=0):
+    if src_found is False and dir_depth_count > 3:
         return
+    # this part is to ge the content of the current path
+    contents = get_content_of_current_path(repo, current_path)
 
     for file in contents:
         if file.type == "dir":
@@ -132,15 +177,12 @@ def process_entire_repo(repo, repo_features):
     print("-" * 40)
 
 
-def get_all_files_from_commit(repo, repo_features, commit):
+def get_all_files_from_commit(commit):
     allfiles = []
     for file in commit.files:
         path = file.filename
         print("PATH : ", path)
-        if not has_valid_extension(path):
-            continue
         allfiles.append(path)
-
     return allfiles
 
 
@@ -150,7 +192,7 @@ def process_repo_commit_wise(repo, repo_features, username):
     print(all_commits.totalCount)
     all_files = []
     for commit in all_commits:
-        all_files = all_files + get_all_files_from_commit(repo, repo_features, commit)
+        all_files = all_files + get_all_files_from_commit(commit)
 
     all_files = list(dict.fromkeys(all_files))
     for file in all_files:
@@ -161,6 +203,10 @@ def process_repo_commit_wise(repo, repo_features, username):
             """Essentially to deal with deletion"""
             pass
 
+
+# ======================================================================
+# ======== FUNCTIONS FOR CONCEPT EXTRACTION ============================
+# ======================================================================
 
 def get_associated_concept_from_keyword(keyword):
     parts = keyword.split(".")
@@ -210,41 +256,58 @@ def find_concept(mappings, keyword):
     return None
 
 
-def main(username):
-    github_obj = get_github_obj();
-    user = get_user(github_obj, name=username)
-    repo_list = get_repos_list(user)
-    repo_features = RepoFeatures()
+def process_all_repos(repo_list, repo_features, username):
     for repo in repo_list:
         print(get_repo_stats(repo).name)
-
+        repo_features.add_repo()
         if not repo.fork:
             process_entire_repo(repo, repo_features)
         else:
             repo_features.add_forked_repo()
             process_repo_commit_wise(repo, repo_features, username)
 
-    print(repo_features.keywords)
+
+def main(username):
+    github_obj = get_github_obj();
+    try:
+        user = get_user(github_obj, name=username)
+    except UnknownObjectException:
+        return {"issue": "InValid UserName"};
+
+    repo_list = get_repos_list(user)
+    repo_features = RepoFeatures()
+
+    try:
+        process_all_repos(repo_list, repo_features, username)
+    except:
+        # pass incomplete information, probably due to too many API CALLs
+        pass
+
     concept_freq_table = process_all_keywords(repo_features.keywords)
-    best20keywords = get_top_keywords(concept_freq_table, 20)
-    print(best20keywords)
+
+    # print(repo_features.keywords)
+    # best20keywords = get_top_keywords(concept_freq_table, 20)
+    # print(best20keywords)
 
     mappings = load_mappings()
-    conceptList = {}
+    concept_list = {}
     for keyword, freq in concept_freq_table.items():
         concept = find_concept(mappings, keyword)
         if concept is None:
             continue
-
         concept = concept.strip()
 
-        if concept in conceptList:
-            conceptList[concept] += freq
+        if concept in concept_list:
+            concept_list[concept] += freq
         else:
-            conceptList[concept] = freq
+            concept_list[concept] = freq
 
-    print(conceptList)
-    to_return = {"concepts": conceptList}
+    print(concept_list)
+    to_return = {
+        "concepts": concept_list,
+        "extensions": repo_features.extensions,
+        "TotalRepoCount": repo_features.totalRepos,
+        "ForkedRepoCount": repo_features.forkedRepos
+    }
+
     return to_return
-
-

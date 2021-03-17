@@ -43,5 +43,4 @@ def json_example():
 
 if __name__ == '__main__':
     # run app in debug mode on port 5000
-    print(os.environ.get("github_api_key"))
     app.run(debug=True, port=5000)
