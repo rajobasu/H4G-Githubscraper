@@ -4,7 +4,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from helper import login, printProgressBar
 import config
 import json
 import logging
@@ -17,21 +16,22 @@ class Profile:
         self.driver = driver
         self.profile = profile
 
+        self.login(email=config.email, password=config.password)
         self.driver.get(self.profile)
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "pv-top-card--list.inline-flex.align-items-center")))
         logging.info("successfully fetched profile")
 
     def scrape(self):
-        printProgressBar(0, 6, "checking for recent activities\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(0, 6, "checking for recent activities\t", "Complete", length=50, printEnd="\r\n")
         self.check_recent_activities()
-        printProgressBar(1, 6, "fetching interest categories\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(1, 6, "fetching interest categories\t", "Complete", length=50, printEnd="\r\n")
         self.fetch_interest_categories()
-        printProgressBar(4, 6, "fetching recent activities\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(4, 6, "fetching recent activities\t\t", "Complete", length=50, printEnd="\r\n")
         self.fetch_recent_activies()
-        printProgressBar(5, 6, "cleaning up\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(5, 6, "cleaning up\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
         self.driver.quit()
-        printProgressBar(6, 6, "exiting\t\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
+        self.printProgressBar(6, 6, "exiting\t\t\t\t\t\t\t", "Complete", length=50, printEnd="\r\n")
 
         logging.info("finished scrapping")
 
@@ -152,6 +152,42 @@ class Profile:
 
             logging.info('successfully fetched recent activities')
 
+    def login(self, email=None, password=None):
+        self.driver.get("https://www.linkedin.com/login")
+        WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
+
+        email_elem = self.driver.find_element_by_id("username")
+        email_elem.send_keys(email)
+
+        password_elem = self.driver.find_element_by_id("password")
+        password_elem.send_keys(password)
+        password_elem.submit()
+
+        WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.ID, "profile-nav-item")))
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "profile-rail-card__actor-link.t-16.t-black.t-bold")))
+
+    def printProgressBar(self, iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+        """
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            total       - Required  : total iterations (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            length      - Optional  : character length of bar (Int)
+            fill        - Optional  : bar fill character (Str)
+            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+        """
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printEnd)
+        # Print New Line on Complete
+        if iteration == total:
+            print()
+
 
 def write_to_json(file_name: str, data: any) -> None:
     with open(file_name + '.json', 'w') as json_file:
@@ -160,9 +196,7 @@ def write_to_json(file_name: str, data: any) -> None:
     logging.info("json file created")
 
 
-def main():
-    profile = "https://www.linkedin.com/in/richardyang98/"
-    file_name = 'RY'
+def linkedin_scrapper(profile_link):
     logging.basicConfig(filename='scrape.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
     options = Options()
@@ -172,9 +206,11 @@ def main():
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     logging.info("driver setup done")
 
-    login(driver=driver, email="", password="")
-    scraper = Profile(driver=driver, profile=profile)
+    scraper = Profile(driver=driver, profile=profile_link)
+
     scraper.scrape()
-    write_to_json(file_name=file_name, data=scraper.LinkedIn_Dict)
+    return scraper.LinkedIn_Dict
 
 
+# if __name__ == "__main__":
+#     linkedin_scrapper("xxx")

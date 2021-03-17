@@ -1,11 +1,6 @@
 import config
-import json
 import requests
-
-
-def read_from_json(file_name: str) -> dict:
-    with open(file_name, 'r') as json_file:
-        return json.load(json_file)
+from scrape import linkedin_scrapper
 
 
 class KeywordExtractor:
@@ -41,9 +36,12 @@ class KeywordExtractor:
         self.keywords = r.json()['output']
 
 
-def main():
-    file_name = 'RY.json'
-    person_dict = read_from_json(file_name=file_name)
+def linkedin_data(profile_link):
+    person_dict = linkedin_scrapper(profile_link=profile_link)
     person = KeywordExtractor(person_dict=person_dict)
-    print(person.keywords)
+    person_dict["keywords"] = person.keywords.split("\n")
+    return person_dict
 
+
+# if __name__ == "__main__":
+#     print(linkedin_data("https://www.linkedin.com/in/richardyang98/"))
