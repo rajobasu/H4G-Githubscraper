@@ -53,6 +53,29 @@ class RepoFeatures:
         else:
             self.extensions[e] = 1
 
+    def process_extension_to_percentages(self):
+        total = 0
+        for key, value in self.extensions.items():
+            total += value
+        total2 = 0
+        ex = {}
+        t = None
+        v2 = 0
+        print(total)
+        print(self.extensions)
+        for key, value in self.extensions.items():
+            v = value * 100 // total
+            total2 += v
+            ex[key] = v
+            if v > v2:
+                v2 = v
+                t = key
+        print(ex)
+        if t is not None:
+            ex[t] += 100 - total2
+
+        self.extensions = ex
+
 
 # ==============================================================================
 # FUNCTIONS
@@ -69,6 +92,8 @@ valid_extensions = {".java": "java",
                     ".rb": "Ruby",
                     ".swift": "Swift",
                     ".kt": "Kotlin"}
+dir_to_avoid = ["vendor"]
+
 
 
 def has_valid_extension(path):
@@ -160,6 +185,13 @@ def process_repo_recursively(repo, repo_features, current_path, src_found=False,
 
     for file in contents:
         if file.type == "dir":
+            ok = True
+            for v in dir_to_avoid:
+                if v in file.name:
+                    ok = False
+                    break
+            if not ok:
+                continue
             if file.name == "src":
                 process_repo_recursively(repo, repo_features, file.path, True, dir_depth_count + 1)
             else:
@@ -279,7 +311,7 @@ def main(username):
 
     try:
         process_all_repos(repo_list, repo_features, username)
-    except:
+    except ValueError:
         # pass incomplete information, probably due to too many API CALLs
         pass
 
@@ -303,6 +335,13 @@ def main(username):
             concept_list[concept] = freq
 
     print(concept_list)
+    repo_features.process_extension_to_percentages()
+    concept_list = sorted(concept_list.items(), key=lambda item: item[1], reverse=True)
+    if len(concept_list) <= 6:
+        concept_list = dict(concept_list)
+    else:
+        concept_list = dict(concept_list[:6])
+
     to_return = {
         "concepts": concept_list,
         "extensions": repo_features.extensions,

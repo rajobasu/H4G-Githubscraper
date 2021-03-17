@@ -1,9 +1,11 @@
 org.junit, UnitTesting
 java.util.concurrent, Concurrency
-java.util, Collections Framework
 javax.swing, Java Swing
 jackson, JSon
 java.awt, Java AWT
 java.io, IO Processing
 java.nio, IO Processing
 javafx, JavaFX
+android, Android
+org.springframework, Spring Framework
+java.sql, JDBC
