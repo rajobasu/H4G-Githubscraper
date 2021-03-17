@@ -3,21 +3,24 @@ import json
 import os
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS, cross_origin
 
 # create the Flask app
 from keyword_extract import linkedin_data
 from main import main
 
 app = Flask(__name__)
+cors = CORS(app)
 
 
 @app.route('/githubinfo')
+@cross_origin()
 def get_github_info():
     print("hello")
     githubID = request.args.get("githubID")
     print("GOT REQUEST : ", githubID)
     result = jsonify(main(githubID))
-    result.headers.add("Access-Control-Allow-Origin", "https://githublinkedinscrapper.netlify.app")
+    result.headers.add("Access-Control-Allow-Origin", "*")
     return result
 
 
